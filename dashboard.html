@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div class="col-lg-7 col-sm-12 px-4 mx-auto shadow-sm bg-dark text-white">
+        <h1>Welcome to the Dashboard section</h1>
+        <div id="show" class="mt-2 my-2"></div>
+        <button class="btn btn-danger my-2" onclick="signO()">Sign Out</button>
+    </div>
+    <div class="col-lg-7 col-sm-12 my-4 px-4 mx-auto shadow-sm bg-dark text-white">
+        <h4 class="text-center">Todo Application</h4>
+        <input type="text" class="form-control" id="inputOne">
+        <input type="text" class="form-control my-2" id="inputTwo">
+        <input type="file" class="form-control my-2" id="filey">
+        <input type="text" class="form-control my-2" id="cardInfo" placeholder="Enter File Details">
+        <button class="btn btn-primary w-100 my-2" onclick="submitTodo()">Submit</button>
+        <button class="btn btn-success w-100 my-2" onclick="submitFile()">Submit File</button>
+        <div id="progress" class="my-2"></div>
+        <div id="saved"></div>
+        <div id="dataResult"></div>
+        <div class="card text-center my-3" style="align-items: center; justify-content: center;" id="card"></div>
+
+        <!-- Modal -->
+        <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+            aria-labelledby="staticBackdropLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="staticBackdropLabel">New File and Details</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="file" class="form-control form-control-sm my-2" id="newFile">
+                        <input type="text" class="form-control form-control-sm my-2" id="newDetails">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary"
+                            onclick="editFile('${incomingFile.name}', '${cardInfo}')"
+                            data-bs-dismiss="modal">Okay</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- <input type="file" capture="user"> -->
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+        import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+        import { getStorage, ref as stref, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDevIh2NUmvsVsV1xk8cUOIyQ9Xnax33H0",
+            authDomain: "shola-s-project.firebaseapp.com",
+            projectId: "shola-s-project",
+            storageBucket: "shola-s-project.appspot.com",
+            messagingSenderId: "504807637172",
+            appId: "1:504807637172:web:00e2840fdadcc062ca97e1"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+        const storage = getStorage();
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log(user);
+                const uid = user.uid;
+                show.innerHTML = `
+                    <h2>Welcome, ${user.displayName}</h2>
+                    <h2>your email address is; ${user.email}</h2>
+                    Here is your pix
+                    <div>
+                        <img src="${user.photoURL}" alt="profile pix"/>
+                    </div>
+                `
+            } else {
+                console.log("User signed out");
+                window.location.href = "index.html"
+            }
+        });
+
+        const signO = () => {
+            signOut(auth)
+                .then(() => {
+                    // Sign-out successful.
+                    console.log("signed out successfully");
+                }).catch((error) => {
+                    // An error happened.
+                    console.log('failed to sign-out');
+                });
+        }
+
+        window.signO = signO
+
+        const submitTodo = () => {
+            // Get current time and date
+            let time = new Date().toLocaleTimeString();
+            let date = new Date().toLocaleDateString();
+
+            // Get input values
+            const inputOne = document.getElementById("inputOne").value;
+            const inputTwo = document.getElementById("inputTwo").value;
+
+            // Check if input fields are empty
+            if (inputOne === "" || inputTwo === "") {
+                alert('Fields cannot be empty');
+            } else {
+                // Create todo object
+                let todoData = { time, date, inputOne, inputTwo };
+
+                // Reference to 'todos' node
+                let todosRef = ref(database, `todos`);
+
+                // Push new todo data to the database
+                let newTodoRef = push(todosRef);
+
+                // Set the todo data at the generated reference
+                set(newTodoRef, todoData)
+                    .then(() => {
+                        console.log("Todo saved successfully");
+                    })
+                    .catch((error) => {
+                        console.error("Error saving todo:", error);
+                    });
+            }
+        };
+
+        window.submitTodo = submitTodo;
+
+        // Function to fetch and display todos
+        const todosRef = ref(database, 'todos');
+
+        // Fetch all todos from the database
+        onValue(todosRef, (snapshot) => {
+            let todosData = snapshot.val();
+            console.log(todosData);
+            dataResult.innerHTML = "";
+            // Check if there are todos data
+            for (let key in todosData) {
+                if (todosData.hasOwnProperty(key)) {
+                    let todo = todosData[key];
+                    dataResult.innerHTML += `
+                        <div>
+                            <h5>${todo.inputOne}</h5>
+                            <h5>${todo.inputTwo}</h5>
+                            <small>${todo.time}, ${todo.date}</small>
+                            <button class="btn btn-danger" onclick="deleteTodo('${key}')">Delete</button>
+                        </div>
+                    `;
+                }
+                inputOne.value = ""
+                inputTwo.value = ""
+            }
+        });
+
+        const deleteTodo = (todosDataKey) => {
+            let todosRef = ref(database, `todos/${todosDataKey}`);
+            remove(todosRef)
+                .then(() => {
+                    console.log('Deleted Successfully');
+                }).catch((err) => {
+                    console.error("Failed to delete " + err);
+                }).then(() => {
+                    // Refresh the page
+                    location.reload();
+                }).catch((err) => {
+                    console.error("Failed to reload " + err);
+                });
+        }
+        window.deleteTodo = deleteTodo
+
+        const submitFile = () => {
+            let incomingFile = document.getElementById('filey').files[0];
+            let card = document.getElementById('card');
+            let progress = document.getElementById('progress');
+            let saved = document.getElementById('saved');
+            let cardInfo = document.getElementById('cardInfo').value;
+
+            if (cardInfo === "" || incomingFile === undefined) {
+                alert('Please select a file and provide additional details.');
+            } else {
+                onAuthStateChanged(auth, (user) => {
+                    let filedUser = user.displayName;
+                    const storageRef = stref(storage, `${filedUser}/${incomingFile.name}`);
+                    const uploadTask = uploadBytesResumable(storageRef, incomingFile);
+
+                    uploadTask.on('state_changed', (snapshot) => {
+                        const progressValue = ((snapshot.bytesTransferred / snapshot.totalBytes) * 100).toFixed(2);
+                        progress.innerHTML = `<div class="alert alert-info p-2">${progressValue}% uploaded</div>`;
+
+                        if (snapshot.state === 'running') {
+                            progress.style.display = "block";
+                        } else {
+                            progress.style.display = "none";
+                        }
+                    }, (error) => {
+                        console.error("Error uploading file:", error);
+                        alert('Failed to upload file. Please check console for details.');
+                    }, () => {
+                        // Upload completed successfully, now display the file
+                        const fileType = incomingFile.type.split('/')[0]; // Get the file type (e.g., image, video, audio)
+                        console.log(incomingFile);
+                        console.log(`File ${incomingFile.name} of type ${fileType} uploaded successfully.`);
+                        let fileElement;
+
+                        if (fileType === 'image') {
+                            fileElement = `<div>
+                                <a href="${URL.createObjectURL(incomingFile)}" download="${incomingFile.name}">Download Image</a>
+                      <img src="${URL.createObjectURL(incomingFile)}" class="w-100" alt="${incomingFile.name}">
+                    </div>`;
+                        } else if (fileType === 'video') {
+                            fileElement = `<div>
+                                <a href="${URL.createObjectURL(incomingFile)}" download="${incomingFile.name}">Download Video</a>
+                      <video controls class="w-100">
+                          <source src="${URL.createObjectURL(incomingFile)}" type="${incomingFile.type}">
+                      </video>
+                  </div>`;
+                        } else if (fileType === 'audio') {
+                            fileElement = `<div>
+                                <a href="${URL.createObjectURL(incomingFile)}" download="${incomingFile.name}">Download Audio</a>
+                      <audio controls class="w-100">
+                          <source src="${URL.createObjectURL(incomingFile)}" type="${incomingFile.type}">
+                      </audio>
+                  </div>`;
+                        } else {
+                            // Handle document files differently
+                            fileElement = `<div>
+                      <a href="${URL.createObjectURL(incomingFile)}" download="${incomingFile.name}">${incomingFile.name}</a>
+                  </div>`;
+                        }
+
+                        let calculatedFileSize = (incomingFile.size / 1024 / 1024).toFixed(2);
+                        card.innerHTML = `
+                    <div class="card bg-dark text-white">
+                    <div class="card-body">
+                        ${fileElement}
+                        <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">File name: ${incomingFile.name}</p>
+                        <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">${cardInfo}</p>
+                        <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">File type: ${incomingFile.type}</p>
+                        <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">File size: ${calculatedFileSize} MB</p>
+                        <button class="btn btn-danger w-50 my-2" onclick="deleteFile('${incomingFile.name}')">Delete</button>
+                    <button class="btn btn-primary w-50 my-2" data-bs-toggle="modal" data-bs-target="#staticBackdrop">Edit</button>
+                </div>
+            </div>`;
+
+                        dataResult.style.display = "none"
+
+                        const deleteFile = (fileName) => {
+                            const user = auth.currentUser;
+                            const filedUser = user.displayName;
+                            const delRef = stref(storage, `${filedUser}/${fileName}`);
+
+                            console.log("Deleting file:", fileName);
+
+                            // Delete the file
+                            deleteObject(delRef)
+                                .then(() => {
+                                    // File deleted successfully
+                                    console.log("File deleted:", fileName);
+                                    alert('Are you sure you want to delete File');
+
+                                    // Remove the file element from the UI
+                                    const card = document.getElementById('card');
+                                    card.innerHTML = ''; // Clear the card content
+                                    const saved = document.getElementById('saved');
+                                    saved.innerHTML = ''; // Clear the saved message
+                                })
+                                .catch((error) => {
+                                    // Uh-oh, an error occurred!
+                                    console.error("Failed to delete:", fileName, error);
+                                    alert('Failed to delete file. Please check console for details.');
+                                });
+                        };
+
+                        window.deleteFile = deleteFile;
+
+                        const editFile = (fileName, currentDetails) => {
+                            let newDetails = document.getElementById('newDetails').value;
+                            let newFile = document.getElementById('newFile').files[0];
+                            if (newDetails !== null && newDetails.trim() !== "") {
+                                if (newFile) {
+                                    // If a new file is selected, update both the file and details
+                                    const fileType = newFile.type.split('/')[0]; // Get the file type (e.g., image, video, audio)
+                                    let fileElement;
+
+                                    switch (fileType) {
+                                        case 'image':
+                                            fileElement = `<img src="${URL.createObjectURL(newFile)}" class="img-fluid" alt="${newFile.name}">`;
+                                            break;
+                                        case 'video':
+                                            fileElement = `<video controls class="img-fluid">
+                                    <source src="${URL.createObjectURL(newFile)}" type="${newFile.type}">
+                                </video>`;
+                                            break;
+                                        case 'audio':
+                                            fileElement = `<audio controls>
+                                    <source src="${URL.createObjectURL(newFile)}" type="${newFile.type}">
+                                </audio>`;
+                                            break;
+                                        default:
+                                            fileElement = `<p>Unsupported file type: ${newFile.type}</p>`;
+                                    }
+
+                                    let newFileSize = (newFile.size / 1024 / 1024).toFixed(2);
+                                    const card = document.getElementById('card');
+                                    card.innerHTML = `
+                                <div class="card bg-dark text-white">
+                                <div class="card-body">
+                                        ${fileElement}
+                                    <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">File name: ${newFile.name}</p>
+                                    <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">${newDetails}</p>
+                                    <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">File type: ${newFile.type}</p>
+                                    <p class="card-text fw-bold" style="text-transform: capitalize; font-style: italic">File size: ${newFileSize} MB</p>
+                                </div>
+                                </div>`;
+                                } else {
+                                    // If no new file is selected, update only the details
+                                    const card = document.getElementById('card');
+                                    const cardText = card.querySelector('.card-text');
+                                    cardText.textContent = newDetails;
+                                }
+                                alert("File details updated successfully!");
+                            } else if (newDetails === "") {
+                                alert("Please provide valid details.");
+                            } else {
+                                // User canceled the operation or provided empty details
+                                alert("No changes made.");
+                            }
+                        };
+                        window.editFile = editFile
+
+                        saved.innerHTML = '<div class="alert alert-success p-2">File uploaded successfully!</div>';
+                        progress.style.display = "none";
+                        setTimeout(() => {
+                            saved.style.display = "none";
+                        }, 4000);
+
+                    });
+                });
+            }
+        };
+        window.submitFile = submitFile
+
+    </script>
+</body>
+
+</html>
